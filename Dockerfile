@@ -1,21 +1,40 @@
-# Use an official Python runtime as a base image
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Set the working directory inside the container
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy the requirements file and install dependencies
+# Install system dependencies for Playwright
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgdk-pixbuf2.0-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python packages
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your application code
+# Install Playwright browsers
+RUN playwright install chromium
+RUN playwright install-deps chromium
+
+# Copy application files
 COPY . .
 
-# Expose the port your application will listen on
 EXPOSE 7860
 
-# Set the environment variable to ensure Gradio listens on all network interfaces
-ENV GRADIO_SERVER_NAME="0.0.0.0"
-
-# Define the command to run your application
 CMD ["python", "app.py"]
