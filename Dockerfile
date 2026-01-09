@@ -1,53 +1,50 @@
-Copy
-
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies required for Playwright
+# Install system dependencies including Playwright requirements
 RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libxkbcommon0 \
-    libpango-1.0-0 \
-    libcairo2 \
-    xdg-utils \
-    && rm -rf /var/lib/apt/lists/*
+    git \
+    git-lfs \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    cmake \
+    rsync \
+    libgl1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && git lfs install
 
-# Copy requirements first for better caching
+# Install Node.js (required for some dependencies)
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
+
+# Copy requirements and install Python packages
 COPY requirements.txt .
-
-# Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright and browsers
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Install Gradio 6 with OAuth and MCP support
+RUN pip install --no-cache-dir \
+    gradio[oauth,mcp]==6.2.0 \
+    "uvicorn>=0.14.0" \
+    spaces
+# Install Playwright and browsers AFTER installing the Python package
+RUN pip install playwright && \
+    playwright install --with-deps chromium && \
+    echo "✅ Playwright browsers installed successfully"
 
-# Copy the rest of the application
+# Create necessary directories
+RUN mkdir -p /home/user && ( [ -e /home/user/app ] || ln -s /app/ /home/user/app ) || true
+
+# Copy application files
 COPY . .
 
-# Expose Gradio port
+# Expose port
 EXPOSE 7860
-
-# Set environment variable to ensure Playwright runs in headless mode
-ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 
 # Run the application
 CMD ["python", "app.py"]

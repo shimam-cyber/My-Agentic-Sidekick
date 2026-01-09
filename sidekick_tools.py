@@ -1,8 +1,10 @@
+import os
+import requests
+import subprocess
+import sys
 from playwright.async_api import async_playwright
 from langchain_community.agent_toolkits import PlayWrightBrowserToolkit
 from dotenv import load_dotenv
-import os
-import requests
 from langchain.agents import Tool
 from langchain_community.agent_toolkits import FileManagementToolkit
 from langchain_community.tools.wikipedia.tool import WikipediaQueryRun
@@ -53,3 +55,60 @@ async def other_tools():
     
     return file_tools + [push_tool, tool_search, python_repl,  wiki_tool]
 
+
+def ensure_playwright_installed():
+    """Ensure Playwright browsers are installed at runtime if not present."""
+    chromium_path = "/root/.cache/ms-playwright/chromium-1169"
+    chromium_headless_path = "/root/.cache/ms-playwright/chromium_headless_shell-1169"
+    
+    if not os.path.exists(chromium_path) and not os.path.exists(chromium_headless_path):
+        print("Playwright browsers not found. Installing...", file=sys.stderr)
+        try:
+            result = subprocess.run(
+                ["playwright", "install", "--with-deps", "chromium"],
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
+            if result.returncode == 0:
+                print("Playwright browsers installed successfully!", file=sys.stderr)
+            else:
+                print(f"Playwright installation failed: {result.stderr}", file=sys.stderr)
+                raise Exception(f"Playwright installation failed: {result.stderr}")
+        except subprocess.TimeoutExpired:
+            print("Playwright installation timed out", file=sys.stderr)
+            raise
+        except Exception as e:
+            print(f"Failed to install Playwright browsers: {e}", file=sys.stderr)
+            raise
+
+
+async def playwright_tools():
+    """Initialize Playwright and return browser tools."""
+    try:
+        # Try to ensure browsers are installed
+        ensure_playwright_installed()
+        
+        # Import and start Playwright
+        from playwright.async_api import async_playwright
+        
+        playwright = await async_playwright().start()
+        browser = await playwright.chromium.launch(headless=True)
+        
+        # Create your tools here based on your actual implementation
+        # This is a placeholder - replace with your actual tool creation
+        tools = []  
+        
+        print("Playwright initialized successfully", file=sys.stderr)
+        return tools, browser, playwright
+        
+    except Exception as e:
+        print(f"WARNING: Playwright initialization failed: {e}", file=sys.stderr)
+        print("The app will continue without browser automation capabilities", file=sys.stderr)
+        
+        # Return empty/None values so the app can still start
+        return [], None, None
+
+
+# Add any other tool functions you have below
+# Make sure they handle the case where browser is None
